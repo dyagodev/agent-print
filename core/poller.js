@@ -104,16 +104,19 @@ class Poller {
         const items = order.items || [];
         this.onLog(`Pedido #${order.id} — ${items.length} item(s) | catMap keys: [${Object.keys(this._catMap).join(',')}]`);
 
+        const fallbackStation = this._stations.find(s => s.active) || null;
         const groups = {};
         items.forEach(item => {
           const catId = item.item_category_id;
           const st    = this._catMap[catId];
-          if (!catId) {
-            this.onLog(`  "${item.name}" item_category_id=${JSON.stringify(catId)} — sem roteamento`);
-            return;
-          }
           if (!st) {
-            this.onLog(`  "${item.name}" cat_id=${catId} — sem estação atribuída`);
+            if (fallbackStation) {
+              this.onLog(`  "${item.name}" sem roteamento — fallback para "${fallbackStation.name}"`);
+              if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
+              groups[fallbackStation.id].items.push(item);
+            } else {
+              this.onLog(`  "${item.name}" sem roteamento e sem estação fallback`);
+            }
             return;
           }
           if (!st.active) {

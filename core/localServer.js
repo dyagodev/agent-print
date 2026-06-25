@@ -38,10 +38,11 @@ function startLocalServer({ onLog, getStations, getCatMap }) {
             return;
           }
 
-          // Agrupar itens por estação
+          // Agrupar itens por estação (fallback para primeira estação ativa se sem roteamento)
+          const fallback = stations.find(s => s.active) || null;
           const groups = {};
           (order.items || []).forEach(item => {
-            const st = catMap[item.item_category_id];
+            const st = catMap[item.item_category_id] || fallback;
             if (!st || !st.active) return;
             if (!groups[st.id]) groups[st.id] = { station: st, items: [] };
             groups[st.id].items.push(item);
