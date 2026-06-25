@@ -102,14 +102,14 @@ class Poller {
         if (this._printed.has(order.id)) continue;
 
         const items = order.items || [];
-        this.onLog(`Pedido #${order.id} — ${items.length} item(s)`);
+        this.onLog(`Pedido #${order.id} — ${items.length} item(s) | catMap keys: [${Object.keys(this._catMap).join(',')}]`);
 
         const groups = {};
         items.forEach(item => {
           const catId = item.item_category_id;
           const st    = this._catMap[catId];
           if (!catId) {
-            this.onLog(`  "${item.name}" sem item_category_id — sem roteamento`);
+            this.onLog(`  "${item.name}" item_category_id=${JSON.stringify(catId)} — sem roteamento`);
             return;
           }
           if (!st) {
