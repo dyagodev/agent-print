@@ -211,14 +211,36 @@ async function main() {
       for (const order of orders) {
         if (printed.has(order.id)) continue;
 
-        // Agrupar itens por estação
+        const fallbackStation = stations.find(s => s.active) || null;
+
+        // Agrupar itens por estação; sem roteamento cai no fallback
         const groups = {};
         (order.items ?? []).forEach(item => {
           const station = catStationMap[item.item_category_id];
-          if (!station || !station.active) return;
+          if (!station || !station.active) {
+            if (fallbackStation) {
+              if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
+              groups[fallbackStation.id].items.push(item);
+            } else {
+              console.log(`[kero-print]   "${item.name}" sem roteamento e sem estação fallback`);
+            }
+            return;
+          }
           if (!groups[station.id]) groups[station.id] = { station, items: [] };
           groups[station.id].items.push(item);
         });
+
+        if (!Object.keys(groups).length) {
+          console.log(`[kero-print] Pedido #${order.id} — nenhum item com estação, marcando impresso`);
+          try {
+            const totalNow = (order.printed_items_count || 0) + (order.items ?? []).length;
+            await apiFetch(cfg, `/api/lojista/pdv/print-queue/${order.id}/ack`, {
+              method: 'POST',
+              body: JSON.stringify({ total_items: totalNow }),
+            });
+          } catch {}
+          continue;
+        }
 
         let ok = true;
         for (const { station, items } of Object.values(groups)) {
@@ -239,10 +261,13 @@ async function main() {
         }
 
         if (ok) {
-          printed.add(order.id);
-          // Marcar como impresso na API
+          printed.delete(order.id);
+          const totalNow = (order.printed_items_count || 0) + (order.items ?? []).length;
           try {
-            await apiFetch(cfg, `/api/lojista/pdv/print-queue/${order.id}/ack`, { method: 'POST' });
+            await apiFetch(cfg, `/api/lojista/pdv/print-queue/${order.id}/ack`, {
+              method: 'POST',
+              body: JSON.stringify({ total_items: totalNow }),
+            });
           } catch {}
         }
       }

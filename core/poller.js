@@ -105,22 +105,22 @@ class Poller {
         this.onLog(`Pedido #${order.id} — ${items.length} item(s) | catMap keys: [${Object.keys(this._catMap).join(',')}]`);
 
         const fallbackStation = this._stations.find(s => s.active) || null;
+        if (!fallbackStation && this._stations.length) {
+          this.onLog(`  Aviso: ${this._stations.length} estação(ões) configurada(s) mas nenhuma ativa — itens sem roteamento não serão impressos`);
+        }
+
         const groups = {};
         items.forEach(item => {
           const catId = item.item_category_id;
           const st    = this._catMap[catId];
-          if (!st) {
+          if (!st || !st.active) {
             if (fallbackStation) {
-              this.onLog(`  "${item.name}" sem roteamento — fallback para "${fallbackStation.name}"`);
+              this.onLog(`  "${item.name}" sem roteamento → fallback "${fallbackStation.name}"`);
               if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
               groups[fallbackStation.id].items.push(item);
             } else {
-              this.onLog(`  "${item.name}" sem roteamento e sem estação fallback`);
+              this.onLog(`  "${item.name}" sem roteamento e sem estação fallback ativa`);
             }
-            return;
-          }
-          if (!st.active) {
-            this.onLog(`  "${item.name}" → estação "${st.name}" inativa`);
             return;
           }
           if (!groups[st.id]) groups[st.id] = { station: st, items: [] };
