@@ -172,8 +172,8 @@ app.whenReady().then(() => {
   updateTrayMenu('● Iniciando...');
 
   const cfg = loadConfig();
+  openWindow();
   if (!cfg.url || !cfg.token) {
-    openWindow();
     addLog('Bem-vindo! Configure URL e Token para começar.');
     setStatus('stopped');
   } else {
