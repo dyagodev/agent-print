@@ -69,10 +69,12 @@ class Poller {
     this._stations = stations;
     this._catMap   = {};
     cats.forEach(c => {
-      if (c.print_station_id) {
-        const st = stations.find(s => s.id === c.print_station_id);
-        if (st) this._catMap[c.id] = st;
-      }
+      // Suporta múltiplas estações (print_station_ids) e fallback para print_station_id singular
+      const ids = (c.print_station_ids && c.print_station_ids.length)
+        ? c.print_station_ids
+        : (c.print_station_id ? [c.print_station_id] : []);
+      const sts = ids.map(id => stations.find(s => s.id === id)).filter(Boolean);
+      if (sts.length) this._catMap[c.id] = sts;
     });
     this._lastLoad = Date.now();
     const mapEntries = Object.keys(this._catMap).length;
@@ -111,9 +113,11 @@ class Poller {
 
         const groups = {};
         items.forEach(item => {
-          const catId = item.item_category_id;
-          const st    = this._catMap[catId];
-          if (!st || !st.active) {
+          const catId  = item.item_category_id;
+          const stList = this._catMap[catId] || [];
+          const active = stList.filter(s => s.active);
+
+          if (!active.length) {
             if (fallbackStation) {
               this.onLog(`  "${item.name}" sem roteamento → fallback "${fallbackStation.name}"`);
               if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
@@ -123,8 +127,11 @@ class Poller {
             }
             return;
           }
-          if (!groups[st.id]) groups[st.id] = { station: st, items: [] };
-          groups[st.id].items.push(item);
+
+          active.forEach(st => {
+            if (!groups[st.id]) groups[st.id] = { station: st, items: [] };
+            groups[st.id].items.push(item);
+          });
         });
 
         if (!Object.keys(groups).length) {
@@ -139,9 +146,15 @@ class Poller {
           continue;
         }
 
+        const isFullPrint = !order.printed_items_count; // primeira impressão do pedido
+
         let ok = true;
         for (const { station, items: stItems } of Object.values(groups)) {
-          const data = buildEscPos({ ...order, items: stItems }, station.name);
+          const data = buildEscPos(
+            { ...order, items: stItems },
+            station.name,
+            { paperWidth: station.paper_width || 80, isFullPrint },
+          );
           try {
             if (station.type === 'network') {
               await sendTcp(station.printer_ip, station.printer_port, data);

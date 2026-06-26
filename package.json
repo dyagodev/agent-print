@@ -16,14 +16,14 @@
     "copyright": "Kero Pedir",
     "files": [
       "electron/**/*",
-      "core/**/*"
+      "core/**/*",
+      "assets/**/*"
     ],
     "win": {
       "target": [
         { "target": "portable", "arch": ["x64"] },
         { "target": "nsis",     "arch": ["x64"] }
-      ],
-      "icon": "electron/assets/icon.ico"
+      ]
     },
     "mac": {
       "target": "dmg",

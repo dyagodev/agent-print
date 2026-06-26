@@ -55,62 +55,88 @@ const GS   = 0x1d;
 const buf  = (...bytes) => Buffer.from(bytes);
 const text = (s) => Buffer.from(String(s), 'latin1');
 
-const INIT    = buf(ESC, 0x40);
-const BOLD_ON = buf(ESC, 0x45, 0x01);
-const CENTER  = buf(ESC, 0x61, 0x01);
-const LEFT    = buf(ESC, 0x61, 0x00);
-const SMALL   = buf(ESC, 0x4d, 0x01);
-const NORMAL  = buf(ESC, 0x4d, 0x00);
-const CUT     = buf(GS,  0x56, 0x41, 0x05);
-const LF      = buf(0x0a);
+const INIT       = buf(ESC, 0x40);
+const BOLD_ON    = buf(ESC, 0x45, 0x01);
+const BOLD_OFF   = buf(ESC, 0x45, 0x00);
+const CENTER     = buf(ESC, 0x61, 0x01);
+const LEFT       = buf(ESC, 0x61, 0x00);
+const SMALL      = buf(ESC, 0x4d, 0x01);
+const NORMAL     = buf(ESC, 0x4d, 0x00);
+const DOUBLE_ON  = buf(ESC, 0x21, 0x30);
+const DOUBLE_OFF = buf(ESC, 0x21, 0x00);
+const CUT        = buf(GS,  0x56, 0x41, 0x05);
+const LF         = buf(0x0a);
 
-function col(left, right, w = WIDTH) {
-  const r = String(right);
-  const l = String(left).substring(0, w - r.length - 1);
-  const pad = ' '.repeat(Math.max(0, w - l.length - r.length));
-  return text(l + pad + r);
-}
-
-function dashes() { return text('-'.repeat(WIDTH)); }
-function money(v) { return 'R$' + Number(v).toFixed(2).replace('.', ','); }
-
+const COLS = { 58: 32, 80: 48 };
 const ORDER_TYPE = { comanda: 'COMANDA', retirada: 'RETIRADA', delivery: 'DELIVERY' };
 const PAYMENT    = { cash: 'Dinheiro', pix: 'PIX', card: 'Cartão' };
+const money = (v) => 'R$' + Number(v).toFixed(2).replace('.', ',');
 
-function buildEscPos(order, stationName) {
-  const chunks = [];
-  const add    = (...b) => chunks.push(...b);
+function buildEscPos(order, stationName, opts = {}) {
+  const w          = COLS[opts.paperWidth] ?? 48;
+  const isFullPrint = opts.isFullPrint !== false;
+  const chunks     = [];
+  const add        = (...b) => chunks.push(...b);
+
+  const col = (left, right) => {
+    const r   = String(right);
+    const l   = String(left).substring(0, w - r.length - 1);
+    const pad = ' '.repeat(Math.max(0, w - l.length - r.length));
+    return text(l + pad + r);
+  };
+  const dashes = () => text('-'.repeat(w));
 
   const typeLabel = ORDER_TYPE[order.order_type] ?? 'PEDIDO';
   const now       = new Date().toLocaleString('pt-BR');
 
   add(INIT, BOLD_ON);
+
+  if (isFullPrint && order.provider_name) {
+    add(CENTER, text(order.provider_name.toUpperCase()), LF);
+  }
   if (stationName) add(CENTER, text(stationName.toUpperCase()), LF);
   add(CENTER, text(`${typeLabel} #${order.id}`), LF);
-  add(SMALL, text(now), NORMAL, LF);
-  add(LEFT, dashes(), LF);
+  add(SMALL, CENTER, text(now), NORMAL, LEFT, LF);
+  add(dashes(), LF);
 
   if (order.customer_name) add(col('Cliente', order.customer_name), LF);
-  const pay = PAYMENT[order.payment_method] ?? (order.payment_method ?? '');
-  if (pay) add(col('Pagamento', pay), LF);
+
+  if (isFullPrint) {
+    const pay = PAYMENT[order.payment_method] ?? (order.payment_method ?? '');
+    if (pay) add(col('Pagamento', pay), LF);
+  }
+
   add(dashes(), LF);
 
   (order.items ?? []).forEach(item => {
-    add(col(`${item.qty}x ${item.name}`, money(item.subtotal)), LF);
+    if (isFullPrint) {
+      add(col(`${item.qty}x ${item.name}`, money(item.subtotal)), LF);
+    } else {
+      add(DOUBLE_ON, text(`${item.qty}x `), DOUBLE_OFF, BOLD_ON, text(item.name), BOLD_OFF, LF);
+    }
     (item.selected_options ?? []).forEach(o => {
       add(SMALL, text(`  ${o.group_name}: ${o.option_name}`), NORMAL, LF);
+    });
+    (item.variants ?? []).forEach(v => {
+      add(SMALL, text(`  ${v.group_name}: ${v.option_name}`), NORMAL, LF);
     });
   });
 
   add(dashes(), LF);
-  add(col('TOTAL', money(order.total)), LF);
 
-  if (order.notes) {
+  if (isFullPrint) {
+    add(col('TOTAL', money(order.total)), LF);
+    if (order.notes) {
+      add(dashes(), LF);
+      add(SMALL, text('OBS: ' + order.notes), NORMAL, LF);
+    }
     add(dashes(), LF);
-    add(SMALL, text('OBS: ' + order.notes), NORMAL, LF);
+    add(CENTER, SMALL, text('Obrigado pela preferencia!'), NORMAL, LF);
+    add(CENTER, SMALL, text('Kero Pedir'), NORMAL, LF);
+  } else {
+    if (order.notes) add(SMALL, text('OBS: ' + order.notes), NORMAL, LF);
   }
 
-  add(CENTER, SMALL, text('Kero Pedir'), NORMAL, LF);
   add(buf(0x0a, 0x0a, 0x0a), CUT);
 
   return Buffer.concat(chunks);
@@ -179,10 +205,11 @@ async function main() {
       stations      = s;
       catStationMap = {};
       c.forEach(cat => {
-        if (cat.print_station_id) {
-          const st = s.find(x => x.id === cat.print_station_id);
-          if (st) catStationMap[cat.id] = st;
-        }
+        const ids = (cat.print_station_ids && cat.print_station_ids.length)
+          ? cat.print_station_ids
+          : (cat.print_station_id ? [cat.print_station_id] : []);
+        const sts = ids.map(id => s.find(x => x.id === id)).filter(Boolean);
+        if (sts.length) catStationMap[cat.id] = sts;
       });
       lastStationsLoad = Date.now();
       console.log(`[kero-print] ${s.length} estação(ões) carregada(s)`);
@@ -216,8 +243,9 @@ async function main() {
         // Agrupar itens por estação; sem roteamento cai no fallback
         const groups = {};
         (order.items ?? []).forEach(item => {
-          const station = catStationMap[item.item_category_id];
-          if (!station || !station.active) {
+          const stList = catStationMap[item.item_category_id] || [];
+          const active = stList.filter(s => s.active);
+          if (!active.length) {
             if (fallbackStation) {
               if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
               groups[fallbackStation.id].items.push(item);
@@ -226,8 +254,10 @@ async function main() {
             }
             return;
           }
-          if (!groups[station.id]) groups[station.id] = { station, items: [] };
-          groups[station.id].items.push(item);
+          active.forEach(st => {
+            if (!groups[st.id]) groups[st.id] = { station: st, items: [] };
+            groups[st.id].items.push(item);
+          });
         });
 
         if (!Object.keys(groups).length) {
@@ -242,10 +272,15 @@ async function main() {
           continue;
         }
 
+        const isFullPrint = !order.printed_items_count; // primeira impressão do pedido
+
         let ok = true;
         for (const { station, items } of Object.values(groups)) {
           const subOrder = { ...order, items };
-          const data     = buildEscPos(subOrder, station.name);
+          const data     = buildEscPos(subOrder, station.name, {
+            paperWidth: station.paper_width || 80,
+            isFullPrint,
+          });
           try {
             if (station.type === 'network') {
               await sendTcp(station.printer_ip, station.printer_port, data);
