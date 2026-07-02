@@ -17,6 +17,8 @@ contextBridge.exposeInMainWorld('kero', {
 
   // WhatsApp
   waGetStatus:    ()          => ipcRenderer.invoke('wa-get-status'),
+  waGetEnabled:   ()          => ipcRenderer.invoke('wa-get-enabled'),
+  waSetEnabled:   (val)       => ipcRenderer.invoke('wa-set-enabled', val),
   waGetTemplates: ()          => ipcRenderer.invoke('wa-get-templates'),
   waSaveTemplates:(templates) => ipcRenderer.invoke('wa-save-templates', templates),
   waShowWindow:   ()          => ipcRenderer.invoke('wa-show-window'),

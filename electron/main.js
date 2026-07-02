@@ -196,6 +196,20 @@ ipcMain.handle('open-external', (_, url) => shell.openExternal(url));
 ipcMain.handle('wa-get-status',    () => waSender ? (waSender.isReady() ? 'wa_ready' : 'wa_loading') : 'wa_off');
 ipcMain.handle('wa-get-templates', () => loadWaTemplates());
 
+ipcMain.handle('wa-get-enabled', () => {
+  const cfg = loadConfig();
+  return cfg.waEnabled !== false; // true por padrão
+});
+
+ipcMain.handle('wa-set-enabled', (_, val) => {
+  const cfg = loadConfig();
+  cfg.waEnabled = !!val;
+  saveConfig(cfg);
+  if (waPoller) waPoller.setEnabled(cfg.waEnabled);
+  addLog(`[WhatsApp] Notificações ${cfg.waEnabled ? 'ativadas' : 'desativadas'}`);
+  return { ok: true };
+});
+
 ipcMain.handle('wa-save-templates', (_, templates) => {
   saveWaTemplates(templates);
   if (waPoller) waPoller.updateTemplates(templates);
@@ -276,6 +290,7 @@ function initWhatsApp() {
       sender:    waSender,
       templates: loadWaTemplates(),
       onLog:     addLog,
+      enabled:   cfg.waEnabled !== false,
     });
     waPoller.start();
   }

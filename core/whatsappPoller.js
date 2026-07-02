@@ -42,12 +42,13 @@ const DEFAULT_TEMPLATES = {
 };
 
 class WhatsAppPoller {
-  constructor({ cfg, sender, templates, onLog }) {
+  constructor({ cfg, sender, templates, onLog, enabled = true }) {
     this.cfg        = cfg;
     this._sender    = sender;
     this._templates = { ...DEFAULT_TEMPLATES, ...(templates || {}) };
     this._log       = onLog || (() => {});
     this._running   = false;
+    this._enabled   = enabled;
     this._timer     = null;
     this._acked     = new Set();
   }
@@ -64,6 +65,9 @@ class WhatsAppPoller {
   }
 
   updateConfig(cfg) { this.cfg = cfg; }
+
+  setEnabled(val) { this._enabled = !!val; }
+  isEnabled()     { return this._enabled; }
 
   updateTemplates(templates) {
     this._templates = { ...DEFAULT_TEMPLATES, ...templates };
@@ -102,6 +106,7 @@ class WhatsAppPoller {
 
   async _poll() {
     if (!this._sender.isReady()) return;
+    if (!this._enabled) return;
 
     let items;
     try {

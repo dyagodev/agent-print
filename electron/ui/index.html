@@ -6,263 +6,492 @@
   <title>Kero Pedir Print</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, 'Segoe UI', sans-serif; background: #f5f5f5; color: #222; }
-
-    header {
-      background: #D60F34; color: #fff;
-      padding: 16px 20px;
-      display: flex; align-items: center; gap: 12px;
+    :root {
+      --red: #D60F34; --red-dk: #b50d2b;
+      --green: #16a34a; --green-lt: #dcfce7;
+      --wa: #25d366;
+      --gray: #6b7280; --gray-lt: #f3f4f6; --gray-bd: #e5e7eb;
+      --txt: #111827; --txt-sm: #374151; --txt-xs: #6b7280;
+      --radius: 10px; --card-shadow: 0 1px 4px rgba(0,0,0,.09);
     }
-    header h1 { font-size: 16px; font-weight: 600; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, 'Segoe UI', sans-serif;
+      background: #f0f0f2; color: var(--txt);
+      display: flex; flex-direction: column;
+      font-size: 13px;
+    }
+
+    /* ── Update banner ── */
+    #update-banner {
+      display: none; background: #1a7f4b; color: #fff;
+      padding: 9px 16px; align-items: center; gap: 10px; font-size: 12px;
+    }
+    #update-install-btn {
+      display: none; margin-left: auto; background: #fff; color: #1a7f4b;
+      border: none; border-radius: 6px; padding: 4px 12px; cursor: pointer; font-weight: 600;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--red); color: #fff;
+      padding: 13px 18px;
+      display: flex; align-items: center; gap: 10px;
+      flex-shrink: 0;
+    }
+    header h1 { font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
     #status-badge {
-      margin-left: auto; font-size: 12px; font-weight: 600;
-      padding: 3px 10px; border-radius: 12px;
-      background: rgba(255,255,255,.2);
+      margin-left: auto; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px;
+      background: rgba(255,255,255,.2); letter-spacing: .2px;
     }
     #status-badge.running { background: #22c55e; }
-    #status-badge.stopped { background: rgba(255,255,255,.25); }
     #status-badge.error   { background: #7f0a1e; }
 
+    /* ── Tabs ── */
+    nav {
+      background: #fff; border-bottom: 1px solid var(--gray-bd);
+      display: flex; flex-shrink: 0;
+    }
+    .tab {
+      flex: 1; padding: 11px 6px 10px;
+      text-align: center; font-size: 12px; font-weight: 600; color: var(--gray);
+      cursor: pointer; border-bottom: 2px solid transparent;
+      transition: color .15s, border-color .15s;
+      display: flex; align-items: center; justify-content: center; gap: 5px;
+      user-select: none;
+    }
+    .tab:hover { color: var(--txt); }
+    .tab.active { color: var(--red); border-bottom-color: var(--red); }
+    .tab-icon { font-size: 14px; }
+
+    /* ── Content ── */
+    main { flex: 1; overflow-y: auto; padding: 16px; }
+    .page { display: none; }
+    .page.active { display: block; }
+
+    /* ── Cards ── */
     .card {
-      margin: 16px; background: #fff;
-      border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
-      overflow: hidden;
+      background: #fff; border-radius: var(--radius);
+      box-shadow: var(--card-shadow); margin-bottom: 12px; overflow: hidden;
     }
     .card-header {
-      padding: 12px 16px; font-size: 13px; font-weight: 600;
-      color: #555; border-bottom: 1px solid #eee;
+      padding: 11px 16px; font-size: 12px; font-weight: 700;
+      color: var(--txt-xs); text-transform: uppercase; letter-spacing: .5px;
+      border-bottom: 1px solid var(--gray-bd);
+      display: flex; align-items: center; justify-content: space-between;
     }
     .card-body { padding: 16px; }
 
-    label { display: block; font-size: 13px; color: #555; margin-bottom: 4px; }
-    input[type=text], input[type=password] {
-      width: 100%; padding: 8px 10px; border: 1px solid #ddd;
-      border-radius: 6px; font-size: 13px; margin-bottom: 12px;
-      outline: none;
+    /* ── Setup flow ── */
+    .setup-step {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 14px 16px; border-bottom: 1px solid var(--gray-bd);
     }
-    input:focus { border-color: #D60F34; }
+    .setup-step:last-child { border-bottom: none; }
+    .step-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--gray-lt); color: var(--gray);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 1px;
+    }
+    .step-num.done { background: var(--green-lt); color: var(--green); }
+    .step-num.active-step { background: var(--red); color: #fff; }
+    .step-body { flex: 1; }
+    .step-title { font-weight: 600; font-size: 13px; margin-bottom: 3px; }
+    .step-desc { font-size: 12px; color: var(--txt-xs); margin-bottom: 8px; }
+    .step-input {
+      width: 100%; padding: 8px 10px; border: 1px solid var(--gray-bd);
+      border-radius: 7px; font-size: 13px; outline: none; font-family: inherit;
+    }
+    .step-input:focus { border-color: var(--red); box-shadow: 0 0 0 2px rgba(214,15,52,.1); }
+    .step-hint { font-size: 11px; color: var(--txt-xs); margin-top: 5px; }
+    .step-hint a { color: var(--red); cursor: pointer; text-decoration: none; }
 
-    .row { display: flex; gap: 8px; }
+    /* ── Status card ── */
+    .status-row {
+      display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+      border-bottom: 1px solid var(--gray-bd);
+    }
+    .status-row:last-child { border-bottom: none; }
+    .status-icon { font-size: 22px; flex-shrink: 0; width: 36px; text-align: center; }
+    .status-label { font-weight: 600; font-size: 13px; }
+    .status-sub { font-size: 11px; color: var(--txt-xs); margin-top: 1px; }
+    .status-pill {
+      margin-left: auto; font-size: 11px; font-weight: 700;
+      padding: 3px 10px; border-radius: 20px; white-space: nowrap;
+    }
+    .pill-green { background: var(--green-lt); color: var(--green); }
+    .pill-red   { background: #fee2e2; color: #dc2626; }
+    .pill-gray  { background: var(--gray-lt); color: var(--gray); }
+    .pill-yellow{ background: #fef9c3; color: #854d0e; }
+    .pill-blue  { background: #e0f2fe; color: #0369a1; }
 
+    /* ── Buttons ── */
     button {
-      padding: 8px 18px; border: none; border-radius: 6px;
-      font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 8px 16px; border: none; border-radius: 7px;
+      font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
     }
-    .btn-primary { background: #D60F34; color: #fff; }
-    .btn-primary:hover { background: #b50d2b; }
-    .btn-ghost { background: #f3f4f6; color: #444; }
-    .btn-ghost:hover { background: #e5e7eb; }
+    .btn-primary { background: var(--red); color: #fff; }
+    .btn-primary:hover { background: var(--red-dk); }
+    .btn-ghost { background: var(--gray-lt); color: var(--txt-sm); }
+    .btn-ghost:hover { background: var(--gray-bd); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-wa { background: var(--wa); color: #fff; }
+    .btn-wa:hover { background: #1ea854; }
+    .row { display: flex; gap: 8px; margin-top: 12px; }
 
-    #msg { font-size: 12px; margin-top: 8px; min-height: 18px; }
-    #msg.ok  { color: #16a34a; }
-    #msg.err { color: #dc2626; }
+    /* ── WhatsApp ── */
+    .wa-status-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; border-bottom: 1px solid var(--gray-bd);
+    }
+    .wa-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+      background: var(--gray-bd);
+    }
+    .wa-dot.wa_ready   { background: var(--wa); box-shadow: 0 0 0 3px rgba(37,211,102,.2); }
+    .wa-dot.wa_qr      { background: #facc15; }
+    .wa-dot.wa_loading { background: #60a5fa; }
 
+    .tpl-item {
+      padding: 12px 16px; border-bottom: 1px solid var(--gray-bd);
+    }
+    .tpl-item:last-child { border-bottom: none; }
+    .tpl-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;
+    }
+    .tpl-label { font-size: 12px; font-weight: 700; color: var(--txt-sm); }
+    .tpl-toggle {
+      width: 34px; height: 18px; appearance: none; flex-shrink: 0;
+      background: var(--gray-bd); border-radius: 9px; cursor: pointer;
+      transition: background .2s; position: relative;
+    }
+    .tpl-toggle::after {
+      content: ''; position: absolute;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: #fff; top: 2px; left: 2px;
+      transition: left .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2);
+    }
+    .tpl-toggle:checked { background: var(--wa); }
+    .tpl-toggle:checked::after { left: 18px; }
+    .tpl-textarea {
+      width: 100%; padding: 7px 9px;
+      border: 1px solid var(--gray-bd); border-radius: 7px;
+      font-size: 12px; font-family: inherit; resize: vertical; min-height: 50px; outline: none;
+    }
+    .tpl-textarea:focus { border-color: var(--wa); box-shadow: 0 0 0 2px rgba(37,211,102,.1); }
+    .tpl-vars { font-size: 10px; color: var(--txt-xs); margin-top: 4px; }
+
+    .test-row { display: flex; gap: 6px; padding: 12px 16px; align-items: center; }
+    .test-row input, .test-row select {
+      flex: 1; padding: 8px 10px; border: 1px solid var(--gray-bd);
+      border-radius: 7px; font-size: 12px; outline: none; font-family: inherit; background: #fff;
+    }
+    .test-row input:focus, .test-row select:focus { border-color: var(--wa); }
+    #wa-msg { font-size: 11px; min-height: 16px; padding: 0 16px 10px; }
+    #wa-msg.ok  { color: var(--green); }
+    #wa-msg.err { color: #dc2626; }
+
+    /* ── Preview ── */
+    .preview-empty { font-size: 12px; color: var(--txt-xs); text-align: center; padding: 28px 16px; }
+    .preview-item { border-bottom: 1px solid var(--gray-bd); }
+    .preview-item:last-child { border-bottom: none; }
+    .preview-item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 14px; background: var(--gray-lt);
+      font-size: 11px; color: var(--txt-xs);
+    }
+    .preview-item-header strong { color: var(--txt-sm); }
+    pre.preview-receipt {
+      font-family: 'Cascadia Code', 'Courier New', monospace;
+      font-size: 11px; line-height: 1.55;
+      padding: 10px 16px; white-space: pre-wrap; word-break: break-word;
+      background: #fff; color: #111;
+    }
+
+    /* ── Log ── */
     #log-box {
-      height: 130px; overflow-y: auto;
-      background: #1e1e2e; color: #cdd6f4;
-      font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 11px;
-      padding: 10px; border-radius: 0 0 8px 8px;
+      min-height: 300px; font-family: 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 11px; line-height: 1.6;
+      background: #16161e; color: #cdd6f4;
+      padding: 12px; border-radius: 0 0 var(--radius) var(--radius);
       white-space: pre-wrap; word-break: break-all;
     }
     #log-box .err { color: #f38ba8; }
+    #log-box .ok  { color: #a6e3a1; }
 
-    /* ── WhatsApp card ── */
-    .wa-status-row {
-      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
-    }
-    #wa-badge {
-      font-size: 11px; font-weight: 600; padding: 3px 10px;
-      border-radius: 12px; background: #e5e7eb; color: #6b7280;
-    }
-    #wa-badge.wa_ready   { background: #dcfce7; color: #15803d; }
-    #wa-badge.wa_qr      { background: #fef9c3; color: #854d0e; }
-    #wa-badge.wa_loading { background: #e0f2fe; color: #0369a1; }
-    #wa-badge.wa_off     { background: #f3f4f6; color: #9ca3af; }
-
-    details.wa-section { margin-top: 12px; }
-    details.wa-section > summary {
-      font-size: 12px; font-weight: 600; color: #555;
-      cursor: pointer; padding: 6px 0; list-style: none;
-      display: flex; align-items: center; gap: 6px;
-    }
-    details.wa-section > summary::before { content: '▶'; font-size: 10px; }
-    details.wa-section[open] > summary::before { content: '▼'; }
-
-    .tpl-row {
-      display: grid; grid-template-columns: 1fr auto;
-      gap: 6px; align-items: start; margin-bottom: 10px;
-    }
-    .tpl-row label { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 3px; }
-    .tpl-row textarea {
-      width: 100%; padding: 6px 8px;
-      border: 1px solid #ddd; border-radius: 6px;
-      font-size: 12px; font-family: inherit;
-      resize: vertical; min-height: 52px; outline: none;
-    }
-    .tpl-row textarea:focus { border-color: #25d366; }
-    .tpl-toggle {
-      width: 36px; height: 20px; appearance: none;
-      background: #d1d5db; border-radius: 10px; cursor: pointer;
-      transition: background .2s; flex-shrink: 0; margin-top: 2px;
-    }
-    .tpl-toggle:checked { background: #25d366; }
-
-    .wa-test-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
-    .wa-test-row input { flex: 1; }
-    .wa-test-row select {
-      padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px;
-      font-size: 12px; outline: none; background: #fff;
-    }
-    #wa-msg { font-size: 11px; margin-top: 6px; min-height: 16px; }
-    #wa-msg.ok  { color: #16a34a; }
-    #wa-msg.err { color: #dc2626; }
-
-    /* ── Preview de impressão virtual ── */
-    #preview-list { max-height: 340px; overflow-y: auto; padding: 12px 16px; }
-    .preview-empty { font-size: 12px; color: #9ca3af; text-align: center; padding: 20px 0; }
-    .preview-item {
-      margin-bottom: 14px; border: 1px dashed #d1d5db;
-      border-radius: 6px; overflow: hidden;
-    }
-    .preview-item-header {
-      display: flex; justify-content: space-between; align-items: center;
-      background: #f9fafb; padding: 6px 12px; font-size: 11px; color: #6b7280;
-      border-bottom: 1px dashed #e5e7eb;
-    }
-    .preview-item-header strong { color: #374151; }
-    .preview-receipt {
-      font-family: 'Courier New', 'Cascadia Code', monospace;
-      font-size: 12px; line-height: 1.5;
-      background: #fff; padding: 10px 16px;
-      white-space: pre-wrap; word-break: break-word;
-      color: #111; margin: 0;
-    }
-
+    /* ── Footer ── */
     footer {
-      text-align: center; font-size: 11px; color: #aaa;
-      padding: 8px 0 16px;
+      text-align: center; font-size: 11px; color: #bbb;
+      padding: 6px 0 14px; flex-shrink: 0;
     }
-    footer a { color: #D60F34; cursor: pointer; text-decoration: none; }
+    footer a { color: var(--red); cursor: pointer; text-decoration: none; }
+
+    label { display: block; font-size: 12px; font-weight: 600; color: var(--txt-sm); margin-bottom: 4px; }
+    #msg { font-size: 12px; margin-top: 8px; min-height: 18px; }
+    #msg.ok  { color: var(--green); }
+    #msg.err { color: #dc2626; }
   </style>
 </head>
 <body>
-  <div id="update-banner" style="display:none;background:#1a7f4b;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:13px">
+
+  <div id="update-banner">
     <span id="update-banner-text"></span>
-    <button id="update-install-btn" style="display:none;margin-left:auto;background:#fff;color:#1a7f4b;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Instalar e Reiniciar</button>
+    <button id="update-install-btn">Instalar e reiniciar</button>
   </div>
 
   <header>
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
       <rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2M7 13h.01M11 13h.01M15 13h.01"/>
     </svg>
     <h1>Kero Pedir Print</h1>
     <span id="status-badge">–</span>
   </header>
 
-  <div class="card">
-    <div class="card-header">Configuração</div>
-    <div class="card-body">
-      <label>URL do painel</label>
-      <input id="url" type="text" placeholder="https://seusite.com.br">
+  <nav>
+    <div class="tab active" data-tab="inicio">
+      <span class="tab-icon">⚡</span> Início
+    </div>
+    <div class="tab" data-tab="whatsapp">
+      <span class="tab-icon">💬</span> WhatsApp
+    </div>
+    <div class="tab" data-tab="impressao">
+      <span class="tab-icon">🖨️</span> Impressão
+    </div>
+    <div class="tab" data-tab="log">
+      <span class="tab-icon">📋</span> Log
+    </div>
+  </nav>
 
-      <label>Token de acesso</label>
-      <input id="token" type="password" placeholder="Token do agente (gerado no painel)">
+  <main>
 
-      <div class="row">
-        <button class="btn-primary" onclick="save()">Salvar e conectar</button>
-        <button class="btn-ghost"   onclick="restart()">Reconectar</button>
+    <!-- ── Aba Início ── -->
+    <div id="page-inicio" class="page active">
+
+      <!-- Status geral -->
+      <div class="card">
+        <div class="card-header">Status</div>
+        <div class="status-row">
+          <div class="status-icon">🔌</div>
+          <div>
+            <div class="status-label">Agente de impressão</div>
+            <div class="status-sub" id="agent-status-sub">Verificando conexão...</div>
+          </div>
+          <span class="status-pill pill-gray" id="agent-status-pill">–</span>
+        </div>
+        <div class="status-row">
+          <div class="status-icon">💬</div>
+          <div>
+            <div class="status-label">WhatsApp</div>
+            <div class="status-sub" id="wa-status-sub">Carregando...</div>
+          </div>
+          <span class="status-pill pill-gray" id="wa-status-pill">–</span>
+        </div>
       </div>
-      <div id="msg"></div>
-    </div>
-  </div>
 
-  <div class="card">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
-      Simulação de impressão (estação virtual)
-      <span id="preview-count" style="font-size:11px;font-weight:400;color:#9ca3af">0 cupons</span>
-    </div>
-    <div id="preview-list">
-      <div class="preview-empty">Nenhuma impressão simulada ainda.<br>Crie uma estação do tipo "Virtual" no PDV.</div>
-    </div>
-  </div>
+      <!-- Configuração — setup guiado -->
+      <div class="card">
+        <div class="card-header">Configuração</div>
 
-  <!-- ── WhatsApp ── -->
-  <div class="card">
-    <div class="card-header">WhatsApp</div>
-    <div class="card-body">
+        <div class="setup-step">
+          <div class="step-num" id="step1-num">1</div>
+          <div class="step-body">
+            <div class="step-title">URL do seu painel</div>
+            <div class="step-desc">Endereço do sistema Kero Pedir (sem barra no final)</div>
+            <input id="url" class="step-input" type="text" placeholder="https://seusite.com.br">
+          </div>
+        </div>
 
-      <div class="wa-status-row">
-        <span id="wa-badge" class="wa_off">Carregando...</span>
-        <button class="btn-ghost" style="font-size:12px;padding:5px 12px" onclick="waShowWindow()">
-          Abrir / Ver QR Code
-        </button>
+        <div class="setup-step">
+          <div class="step-num" id="step2-num">2</div>
+          <div class="step-body">
+            <div class="step-title">Token de acesso</div>
+            <div class="step-desc">Gerado em <strong>Painel → Impressão → Agente local</strong></div>
+            <input id="token" class="step-input" type="password" placeholder="Cole o token aqui">
+            <div class="step-hint">Nunca compartilhe este token com ninguém.</div>
+          </div>
+        </div>
+
+        <div style="padding: 12px 16px; display:flex; gap:8px; border-top: 1px solid var(--gray-bd)">
+          <button class="btn-primary" onclick="save()">Salvar e conectar</button>
+          <button class="btn-ghost" onclick="restart()">Reconectar</button>
+        </div>
+        <div id="msg" style="padding: 0 16px 12px"></div>
       </div>
 
-      <!-- Templates por evento -->
-      <details class="wa-section" id="wa-tpl-section">
-        <summary>Mensagens automáticas</summary>
-        <div id="wa-tpl-list" style="margin-top:10px"></div>
-        <div style="display:flex;gap:8px;margin-top:4px">
-          <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="waSaveTemplates()">
-            Salvar mensagens
+    </div>
+
+    <!-- ── Aba WhatsApp ── -->
+    <div id="page-whatsapp" class="page">
+
+      <div class="card">
+        <div class="wa-status-row">
+          <div class="wa-dot" id="wa-dot"></div>
+          <div>
+            <div class="status-label" id="wa-label">Carregando...</div>
+            <div class="status-sub" id="wa-sub">–</div>
+          </div>
+          <button class="btn-ghost btn-sm" style="margin-left:auto" onclick="waShowWindow()">
+            Abrir / Ver QR Code
           </button>
         </div>
-      </details>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-top:1px solid var(--gray-bd)">
+          <div>
+            <div style="font-weight:600;font-size:13px">Notificações ativas</div>
+            <div style="font-size:11px;color:var(--txt-xs);margin-top:2px">Enviar mensagens automáticas aos clientes</div>
+          </div>
+          <input type="checkbox" class="tpl-toggle" id="wa-enabled-toggle" checked onchange="waToggleEnabled(this.checked)">
+        </div>
+      </div>
 
-      <!-- Teste de envio -->
-      <details class="wa-section" style="margin-top:8px">
-        <summary>Testar envio</summary>
-        <div class="wa-test-row" style="margin-top:8px">
-          <input id="wa-test-phone" type="text" placeholder="5511999999999" style="font-size:12px;margin-bottom:0">
+      <div class="card">
+        <div class="card-header">
+          Mensagens automáticas
+          <button class="btn-wa btn-sm" onclick="waSaveTemplates()">Salvar</button>
+        </div>
+        <div id="wa-tpl-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">Testar envio</div>
+        <div class="test-row">
+          <input id="wa-test-phone" type="text" placeholder="5511999999999">
           <select id="wa-test-event">
             <option value="order_accepted">Pedido aceito</option>
             <option value="order_ready">Pedido pronto</option>
             <option value="order_out_for_delivery">Saiu para entrega</option>
-            <option value="order_delivered">Pedido entregue</option>
-            <option value="order_cancelled">Pedido cancelado</option>
+            <option value="order_delivered">Entregue</option>
+            <option value="order_cancelled">Cancelado</option>
           </select>
-          <button class="btn-ghost" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="waTestSend()">
-            Enviar teste
-          </button>
+          <button class="btn-ghost btn-sm" onclick="waTestSend()">Enviar</button>
         </div>
         <div id="wa-msg"></div>
-      </details>
+      </div>
 
     </div>
-  </div>
 
-  <div class="card">
-    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
-      Log de atividade
-      <a onclick="window.kero.openLog()" style="font-size:11px;font-weight:400;color:#D60F34;cursor:pointer">
-        Abrir arquivo de log
-      </a>
+    <!-- ── Aba Impressão ── -->
+    <div id="page-impressao" class="page">
+      <div class="card">
+        <div class="card-header">
+          Simulação (estação virtual)
+          <span id="preview-count" style="font-weight:400;color:var(--txt-xs)">0 cupons</span>
+        </div>
+        <div id="preview-list">
+          <div class="preview-empty">Nenhuma impressão simulada ainda.<br>Crie uma estação do tipo <strong>Virtual</strong> no painel.</div>
+        </div>
+      </div>
     </div>
-    <div id="log-box">Carregando...</div>
-  </div>
+
+    <!-- ── Aba Log ── -->
+    <div id="page-log" class="page">
+      <div class="card">
+        <div class="card-header">
+          Atividade
+          <a onclick="window.kero.openLog()" style="font-weight:500;color:var(--red);cursor:pointer;font-size:11px;text-transform:none;letter-spacing:0">
+            Abrir arquivo
+          </a>
+        </div>
+        <div id="log-box">Carregando...</div>
+      </div>
+    </div>
+
+  </main>
 
   <footer>
-    <a onclick="window.kero.openExternal('https://keropedir.com')">keropedir.com</a>
+    v<span id="app-version">1.0.0</span> · <a onclick="window.kero.openExternal('https://keropedir.com')">keropedir.com</a>
   </footer>
 
   <script>
-    const badge  = document.getElementById('status-badge');
-    const logBox = document.getElementById('log-box');
-    const msgEl  = document.getElementById('msg');
+    // ── Tabs ──────────────────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('page-' + tab.dataset.tab).classList.add('active');
+      });
+    });
 
-    const STATUS_LABEL = { running: '● Rodando', stopped: '■ Parado', error: '✕ Erro' };
+    // ── Helpers ───────────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Status ────────────────────────────────────────────────────────────────
+    const headerBadge   = document.getElementById('status-badge');
+    const agentPill     = document.getElementById('agent-status-pill');
+    const agentSub      = document.getElementById('agent-status-sub');
+
+    const AGENT_MAP = {
+      running: { label: '● Rodando',  pill: 'pill-green', sub: 'Conectado ao painel' },
+      stopped: { label: '■ Parado',   pill: 'pill-gray',  sub: 'Aguardando configuração' },
+      error:   { label: '✕ Erro',     pill: 'pill-red',   sub: 'Falha na conexão' },
+    };
 
     function setStatus(s) {
-      badge.className   = s;
-      badge.textContent = STATUS_LABEL[s] ?? s;
+      const m = AGENT_MAP[s] || { label: s, pill: 'pill-gray', sub: '' };
+      headerBadge.textContent = m.label;
+      headerBadge.className   = s;
+      agentPill.textContent   = m.label;
+      agentPill.className     = 'status-pill ' + m.pill;
+      agentSub.textContent    = m.sub;
+
+      // Atualiza visuais do fluxo de config
+      const hasConfig = !!document.getElementById('url').value;
+      document.getElementById('step1-num').className = 'step-num ' + (hasConfig ? 'done' : 'active-step');
+      document.getElementById('step2-num').className = 'step-num ' + (s === 'running' ? 'done' : hasConfig ? 'active-step' : '');
     }
+
+    // ── WhatsApp status ───────────────────────────────────────────────────────
+    const waDot   = document.getElementById('wa-dot');
+    const waLabel = document.getElementById('wa-label');
+    const waSub   = document.getElementById('wa-sub');
+    const waPill  = document.getElementById('wa-status-pill');
+
+    const WA_MAP = {
+      wa_ready:   { label: 'Conectado',       sub: 'Mensagens automáticas ativas', pill: 'pill-green', dot: 'wa_ready' },
+      wa_qr:      { label: 'Aguardando QR',   sub: 'Escaneie o código com o celular', pill: 'pill-yellow', dot: 'wa_qr' },
+      wa_loading: { label: 'Iniciando...',     sub: 'Carregando sessão salva', pill: 'pill-blue', dot: 'wa_loading' },
+      wa_off:     { label: 'Desligado',        sub: 'WhatsApp não inicializado', pill: 'pill-gray', dot: '' },
+    };
+
+    function setWaStatus(s) {
+      const m = WA_MAP[s] || { label: s, sub: '', pill: 'pill-gray', dot: '' };
+      waDot.className   = 'wa-dot ' + m.dot;
+      waLabel.textContent = m.label;
+      waSub.textContent   = m.sub;
+      waPill.textContent  = m.label;
+      waPill.className    = 'status-pill ' + m.pill;
+    }
+
+    // ── Log ───────────────────────────────────────────────────────────────────
+    const logBox = document.getElementById('log-box');
 
     function renderLogs(lines) {
       logBox.innerHTML = lines.length
-        ? lines.map(l => `<div class="${l.includes('ERRO') || l.includes('Erro') ? 'err' : ''}">${l}</div>`).join('')
+        ? lines.map(l => {
+            const cls = l.includes('ERRO') || l.includes('Erro') ? 'err'
+                      : l.includes('✓')    ? 'ok' : '';
+            return `<div class="${cls}">${esc(l)}</div>`;
+          }).join('')
         : '<div>Nenhuma atividade ainda.</div>';
     }
 
+    window.kero.onLog(line => {
+      const div = document.createElement('div');
+      const isErr = line.includes('ERRO') || line.includes('Erro');
+      const isOk  = line.includes('✓');
+      if (isErr) div.className = 'err';
+      if (isOk)  div.className = 'ok';
+      div.textContent = line;
+      logBox.insertBefore(div, logBox.firstChild);
+      if (logBox.children.length > 200) logBox.lastChild.remove();
+    });
+
+    // ── Config ────────────────────────────────────────────────────────────────
+    const msgEl = document.getElementById('msg');
     function msg(text, ok = true) {
       msgEl.textContent = text;
       msgEl.className   = ok ? 'ok' : 'err';
@@ -272,7 +501,7 @@
     async function save() {
       const url   = document.getElementById('url').value.trim();
       const token = document.getElementById('token').value.trim();
-      if (!url || !token) { msg('Preencha URL e Token.', false); return; }
+      if (!url || !token) { msg('Preencha a URL e o Token.', false); return; }
       const res = await window.kero.saveConfig({ url, token });
       if (res.ok) msg('Configuração salva! Conectando...');
     }
@@ -289,22 +518,12 @@
 
     window.kero.getStatus().then(setStatus);
     window.kero.getLogs().then(renderLogs);
-
     window.kero.onStatus(setStatus);
-    window.kero.onLog(line => {
-      const div = document.createElement('div');
-      if (line.includes('ERRO') || line.includes('Erro')) div.className = 'err';
-      div.textContent = line;
-      logBox.insertBefore(div, logBox.firstChild);
-      if (logBox.children.length > 200) logBox.lastChild.remove();
-    });
 
-    // ── Preview de impressão virtual ─────────────────────────
+    // ── Preview ───────────────────────────────────────────────────────────────
     const previewList  = document.getElementById('preview-list');
     const previewCount = document.getElementById('preview-count');
     let _previewTotal  = 0;
-
-    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
     function renderPreviewItem(p) {
       const time = new Date(p.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -312,7 +531,7 @@
       el.className = 'preview-item';
       el.innerHTML = `
         <div class="preview-item-header">
-          <span><strong>${esc(p.station)}</strong> · Pedido #${p.orderId}</span>
+          <span><strong>${esc(p.station)}</strong> · Pedido #${esc(p.orderId)}</span>
           <span>${time}</span>
         </div>
         <pre class="preview-receipt">${esc(p.text)}</pre>`;
@@ -325,60 +544,38 @@
       const empty = previewList.querySelector('.preview-empty');
       if (empty) empty.remove();
       previewList.insertBefore(renderPreviewItem(p), previewList.firstChild);
-      // mantém no máximo 20 cupons visíveis
       while (previewList.children.length > 20) previewList.lastChild.remove();
     }
 
-    window.kero.getPreviews().then(ps => {
-      if (ps && ps.length) ps.forEach(addPreview);
-    });
-
+    window.kero.getPreviews().then(ps => { if (ps && ps.length) ps.forEach(addPreview); });
     window.kero.onPreview(addPreview);
 
-    // ── WhatsApp ──────────────────────────────────────────────────────────────
-    const WA_STATUS_LABEL = {
-      wa_ready:   '● Conectado',
-      wa_qr:      '◎ Aguardando QR',
-      wa_loading: '◌ Iniciando...',
-      wa_off:     '○ Desligado',
-    };
-
+    // ── WhatsApp templates ────────────────────────────────────────────────────
     const EVENT_LABELS = {
-      order_accepted:        'Pedido aceito',
-      order_ready:           'Pedido pronto',
-      order_out_for_delivery:'Saiu para entrega',
-      order_delivered:       'Pedido entregue',
-      order_cancelled:       'Pedido cancelado',
+      order_accepted:         'Pedido aceito',
+      order_ready:            'Pedido pronto',
+      order_out_for_delivery: 'Saiu para entrega',
+      order_delivered:        'Pedido entregue',
+      order_cancelled:        'Pedido cancelado',
     };
 
     let _waTemplates = {};
-
-    function setWaBadge(s) {
-      const badge = document.getElementById('wa-badge');
-      badge.className   = s;
-      badge.textContent = WA_STATUS_LABEL[s] || s;
-    }
 
     function renderWaTemplates(templates) {
       _waTemplates = templates;
       const list = document.getElementById('wa-tpl-list');
       list.innerHTML = '';
-
       for (const [key, tpl] of Object.entries(templates)) {
-        const row = document.createElement('div');
-        row.className = 'tpl-row';
-        row.innerHTML = `
-          <div>
-            <label for="tpl-${key}">${esc(tpl.label || EVENT_LABELS[key] || key)}</label>
-            <textarea id="tpl-${key}" rows="2">${esc(tpl.message || '')}</textarea>
-            <div style="font-size:10px;color:#9ca3af;margin-top:2px">
-              Variáveis: {cliente} {pedido_id} {total} {tipo} {endereco} {tempo_estimado}
-            </div>
-          </div>
-          <div style="padding-top:20px">
+        const item = document.createElement('div');
+        item.className = 'tpl-item';
+        item.innerHTML = `
+          <div class="tpl-header">
+            <span class="tpl-label">${esc(tpl.label || EVENT_LABELS[key] || key)}</span>
             <input type="checkbox" class="tpl-toggle" id="tpl-en-${key}" ${tpl.enabled ? 'checked' : ''}>
-          </div>`;
-        list.appendChild(row);
+          </div>
+          <textarea class="tpl-textarea" id="tpl-${key}" rows="2">${esc(tpl.message || '')}</textarea>
+          <div class="tpl-vars">Variáveis: {cliente} {pedido_id} {total} {tipo} {endereco} {tempo_estimado}</div>`;
+        list.appendChild(item);
       }
     }
 
@@ -402,8 +599,8 @@
       const event = document.getElementById('wa-test-event').value;
       if (!phone) { waMsg('Informe o número.', false); return; }
       const res = await window.kero.waTestSend({ phone, event });
-      if (res.ok) waMsg('Mensagem enfileirada!');
-      else if (res.reason === 'not_ready') waMsg('WhatsApp não conectado.', false);
+      if (res.ok)                              waMsg('Mensagem enfileirada!');
+      else if (res.reason === 'not_ready')     waMsg('WhatsApp não conectado.', false);
       else if (res.reason === 'template_disabled') waMsg('Template desativado.', false);
       else waMsg('Erro: ' + (res.reason || '?'), false);
     }
@@ -415,27 +612,33 @@
       setTimeout(() => { el.textContent = ''; el.className = ''; }, 3500);
     }
 
-    // Init
-    window.kero.waGetStatus().then(setWaBadge);
-    window.kero.waGetTemplates().then(renderWaTemplates);
-    window.kero.onWaStatus(setWaBadge);
+    async function waToggleEnabled(val) {
+      await window.kero.waSetEnabled(val);
+      const toggle = document.getElementById('wa-enabled-toggle');
+      toggle.checked = val;
+    }
 
-    // Auto-update banner
+    window.kero.waGetStatus().then(setWaStatus);
+    window.kero.waGetTemplates().then(renderWaTemplates);
+    window.kero.waGetEnabled().then(val => {
+      document.getElementById('wa-enabled-toggle').checked = val;
+    });
+    window.kero.onWaStatus(setWaStatus);
+
+    // ── Auto-update ───────────────────────────────────────────────────────────
     const updateBanner  = document.getElementById('update-banner');
     const updateText    = document.getElementById('update-banner-text');
     const updateInstBtn = document.getElementById('update-install-btn');
 
     window.kero.onUpdateAvailable(({ version }) => {
       updateBanner.style.display = 'flex';
-      updateText.textContent = `Nova versão ${version} disponível — baixando automaticamente...`;
+      updateText.textContent = `Nova versão ${version} disponível — baixando...`;
     });
-
     window.kero.onUpdateDownloaded(({ version }) => {
       updateBanner.style.display = 'flex';
       updateText.textContent = `v${version} pronta para instalar`;
       updateInstBtn.style.display = 'block';
     });
-
     updateInstBtn.addEventListener('click', () => window.kero.updateInstallNow());
   </script>
 </body>
