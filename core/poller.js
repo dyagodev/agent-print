@@ -1,13 +1,14 @@
 'use strict';
-const { buildEscPos, sendTcp, sendUsb } = require('./printer');
+const { buildEscPos, buildPreview, sendTcp, sendUsb } = require('./printer');
 
 const POLL_MS = 8000;
 
 class Poller {
-  constructor({ cfg, onLog, onStatus }) {
+  constructor({ cfg, onLog, onStatus, onPreview }) {
     this.cfg       = cfg;
-    this.onLog     = onLog    || (() => {});
-    this.onStatus  = onStatus || (() => {});
+    this.onLog     = onLog      || (() => {});
+    this.onStatus  = onStatus   || (() => {});
+    this.onPreview = onPreview  || (() => {});
     this._stations = [];
     this._catMap   = {};
     this._lastLoad = 0;
@@ -106,25 +107,17 @@ class Poller {
         const items = order.items || [];
         this.onLog(`Pedido #${order.id} — ${items.length} item(s) | catMap keys: [${Object.keys(this._catMap).join(',')}]`);
 
-        const fallbackStation = this._stations.find(s => s.active) || null;
-        if (!fallbackStation && this._stations.length) {
-          this.onLog(`  Aviso: ${this._stations.length} estação(ões) configurada(s) mas nenhuma ativa — itens sem roteamento não serão impressos`);
-        }
+        // Fila de produção: ignora estações marcadas como "via cliente"
+        const prodStations = this._stations.filter(s => !s.is_customer_station);
 
         const groups = {};
         items.forEach(item => {
           const catId  = item.item_category_id;
           const stList = this._catMap[catId] || [];
-          const active = stList.filter(s => s.active);
+          const active = stList.filter(s => s.active && !s.is_customer_station);
 
           if (!active.length) {
-            if (fallbackStation) {
-              this.onLog(`  "${item.name}" sem roteamento → fallback "${fallbackStation.name}"`);
-              if (!groups[fallbackStation.id]) groups[fallbackStation.id] = { station: fallbackStation, items: [] };
-              groups[fallbackStation.id].items.push(item);
-            } else {
-              this.onLog(`  "${item.name}" sem roteamento e sem estação fallback ativa`);
-            }
+            this.onLog(`  "${item.name}" sem estação configurada — ignorado`);
             return;
           }
 
@@ -146,22 +139,25 @@ class Poller {
           continue;
         }
 
-        const isFullPrint = !order.printed_items_count; // primeira impressão do pedido
+        const isFullPrint = false; // produção nunca exibe preços — via cliente é impressão manual
 
         let ok = true;
         for (const { station, items: stItems } of Object.values(groups)) {
-          const data = buildEscPos(
-            { ...order, items: stItems },
-            station.name,
-            { paperWidth: station.paper_width || 80, isFullPrint },
-          );
+          const printOpts = { paperWidth: station.paper_width || 80, isFullPrint };
           try {
-            if (station.type === 'network') {
-              await sendTcp(station.printer_ip, station.printer_port, data);
-              this.onLog(`  OK #${order.id} → ${station.name} (${station.printer_ip}:${station.printer_port})`);
+            if (station.type === 'virtual') {
+              const preview = buildPreview({ ...order, items: stItems }, station.name, printOpts);
+              this.onLog(`  OK #${order.id} → ${station.name} (virtual)`);
+              this.onPreview({ station: station.name, text: preview, orderId: order.id, at: new Date().toISOString() });
             } else {
-              await sendUsb(station.printer_name_os, data);
-              this.onLog(`  OK #${order.id} → ${station.name} (USB: ${station.printer_name_os})`);
+              const data = buildEscPos({ ...order, items: stItems }, station.name, printOpts);
+              if (station.type === 'network') {
+                await sendTcp(station.printer_ip, station.printer_port, data);
+                this.onLog(`  OK #${order.id} → ${station.name} (${station.printer_ip}:${station.printer_port})`);
+              } else {
+                await sendUsb(station.printer_name_os, data);
+                this.onLog(`  OK #${order.id} → ${station.name} (USB: ${station.printer_name_os})`);
+              }
             }
           } catch (e) {
             this.onLog(`  ERRO estacao ${station.name}: ${e.message}`);

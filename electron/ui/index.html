@@ -58,13 +58,85 @@
     #msg.err { color: #dc2626; }
 
     #log-box {
-      height: 160px; overflow-y: auto;
+      height: 130px; overflow-y: auto;
       background: #1e1e2e; color: #cdd6f4;
       font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 11px;
       padding: 10px; border-radius: 0 0 8px 8px;
       white-space: pre-wrap; word-break: break-all;
     }
     #log-box .err { color: #f38ba8; }
+
+    /* ── WhatsApp card ── */
+    .wa-status-row {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+    }
+    #wa-badge {
+      font-size: 11px; font-weight: 600; padding: 3px 10px;
+      border-radius: 12px; background: #e5e7eb; color: #6b7280;
+    }
+    #wa-badge.wa_ready   { background: #dcfce7; color: #15803d; }
+    #wa-badge.wa_qr      { background: #fef9c3; color: #854d0e; }
+    #wa-badge.wa_loading { background: #e0f2fe; color: #0369a1; }
+    #wa-badge.wa_off     { background: #f3f4f6; color: #9ca3af; }
+
+    details.wa-section { margin-top: 12px; }
+    details.wa-section > summary {
+      font-size: 12px; font-weight: 600; color: #555;
+      cursor: pointer; padding: 6px 0; list-style: none;
+      display: flex; align-items: center; gap: 6px;
+    }
+    details.wa-section > summary::before { content: '▶'; font-size: 10px; }
+    details.wa-section[open] > summary::before { content: '▼'; }
+
+    .tpl-row {
+      display: grid; grid-template-columns: 1fr auto;
+      gap: 6px; align-items: start; margin-bottom: 10px;
+    }
+    .tpl-row label { font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 3px; }
+    .tpl-row textarea {
+      width: 100%; padding: 6px 8px;
+      border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12px; font-family: inherit;
+      resize: vertical; min-height: 52px; outline: none;
+    }
+    .tpl-row textarea:focus { border-color: #25d366; }
+    .tpl-toggle {
+      width: 36px; height: 20px; appearance: none;
+      background: #d1d5db; border-radius: 10px; cursor: pointer;
+      transition: background .2s; flex-shrink: 0; margin-top: 2px;
+    }
+    .tpl-toggle:checked { background: #25d366; }
+
+    .wa-test-row { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+    .wa-test-row input { flex: 1; }
+    .wa-test-row select {
+      padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px;
+      font-size: 12px; outline: none; background: #fff;
+    }
+    #wa-msg { font-size: 11px; margin-top: 6px; min-height: 16px; }
+    #wa-msg.ok  { color: #16a34a; }
+    #wa-msg.err { color: #dc2626; }
+
+    /* ── Preview de impressão virtual ── */
+    #preview-list { max-height: 340px; overflow-y: auto; padding: 12px 16px; }
+    .preview-empty { font-size: 12px; color: #9ca3af; text-align: center; padding: 20px 0; }
+    .preview-item {
+      margin-bottom: 14px; border: 1px dashed #d1d5db;
+      border-radius: 6px; overflow: hidden;
+    }
+    .preview-item-header {
+      display: flex; justify-content: space-between; align-items: center;
+      background: #f9fafb; padding: 6px 12px; font-size: 11px; color: #6b7280;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+    .preview-item-header strong { color: #374151; }
+    .preview-receipt {
+      font-family: 'Courier New', 'Cascadia Code', monospace;
+      font-size: 12px; line-height: 1.5;
+      background: #fff; padding: 10px 16px;
+      white-space: pre-wrap; word-break: break-word;
+      color: #111; margin: 0;
+    }
 
     footer {
       text-align: center; font-size: 11px; color: #aaa;
@@ -74,6 +146,11 @@
   </style>
 </head>
 <body>
+  <div id="update-banner" style="display:none;background:#1a7f4b;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:10px;font-size:13px">
+    <span id="update-banner-text"></span>
+    <button id="update-install-btn" style="display:none;margin-left:auto;background:#fff;color:#1a7f4b;border:none;border-radius:4px;padding:4px 12px;cursor:pointer;font-weight:600">Instalar e Reiniciar</button>
+  </div>
+
   <header>
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="2" y="7" width="20" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-4 0v2M7 13h.01M11 13h.01M15 13h.01"/>
@@ -96,6 +173,61 @@
         <button class="btn-ghost"   onclick="restart()">Reconectar</button>
       </div>
       <div id="msg"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between">
+      Simulação de impressão (estação virtual)
+      <span id="preview-count" style="font-size:11px;font-weight:400;color:#9ca3af">0 cupons</span>
+    </div>
+    <div id="preview-list">
+      <div class="preview-empty">Nenhuma impressão simulada ainda.<br>Crie uma estação do tipo "Virtual" no PDV.</div>
+    </div>
+  </div>
+
+  <!-- ── WhatsApp ── -->
+  <div class="card">
+    <div class="card-header">WhatsApp</div>
+    <div class="card-body">
+
+      <div class="wa-status-row">
+        <span id="wa-badge" class="wa_off">Carregando...</span>
+        <button class="btn-ghost" style="font-size:12px;padding:5px 12px" onclick="waShowWindow()">
+          Abrir / Ver QR Code
+        </button>
+      </div>
+
+      <!-- Templates por evento -->
+      <details class="wa-section" id="wa-tpl-section">
+        <summary>Mensagens automáticas</summary>
+        <div id="wa-tpl-list" style="margin-top:10px"></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="waSaveTemplates()">
+            Salvar mensagens
+          </button>
+        </div>
+      </details>
+
+      <!-- Teste de envio -->
+      <details class="wa-section" style="margin-top:8px">
+        <summary>Testar envio</summary>
+        <div class="wa-test-row" style="margin-top:8px">
+          <input id="wa-test-phone" type="text" placeholder="5511999999999" style="font-size:12px;margin-bottom:0">
+          <select id="wa-test-event">
+            <option value="order_accepted">Pedido aceito</option>
+            <option value="order_ready">Pedido pronto</option>
+            <option value="order_out_for_delivery">Saiu para entrega</option>
+            <option value="order_delivered">Pedido entregue</option>
+            <option value="order_cancelled">Pedido cancelado</option>
+          </select>
+          <button class="btn-ghost" style="font-size:12px;padding:5px 12px;white-space:nowrap" onclick="waTestSend()">
+            Enviar teste
+          </button>
+        </div>
+        <div id="wa-msg"></div>
+      </details>
+
     </div>
   </div>
 
@@ -166,6 +298,145 @@
       logBox.insertBefore(div, logBox.firstChild);
       if (logBox.children.length > 200) logBox.lastChild.remove();
     });
+
+    // ── Preview de impressão virtual ─────────────────────────
+    const previewList  = document.getElementById('preview-list');
+    const previewCount = document.getElementById('preview-count');
+    let _previewTotal  = 0;
+
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    function renderPreviewItem(p) {
+      const time = new Date(p.at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const el   = document.createElement('div');
+      el.className = 'preview-item';
+      el.innerHTML = `
+        <div class="preview-item-header">
+          <span><strong>${esc(p.station)}</strong> · Pedido #${p.orderId}</span>
+          <span>${time}</span>
+        </div>
+        <pre class="preview-receipt">${esc(p.text)}</pre>`;
+      return el;
+    }
+
+    function addPreview(p) {
+      _previewTotal++;
+      previewCount.textContent = `${_previewTotal} cupom${_previewTotal !== 1 ? 's' : ''}`;
+      const empty = previewList.querySelector('.preview-empty');
+      if (empty) empty.remove();
+      previewList.insertBefore(renderPreviewItem(p), previewList.firstChild);
+      // mantém no máximo 20 cupons visíveis
+      while (previewList.children.length > 20) previewList.lastChild.remove();
+    }
+
+    window.kero.getPreviews().then(ps => {
+      if (ps && ps.length) ps.forEach(addPreview);
+    });
+
+    window.kero.onPreview(addPreview);
+
+    // ── WhatsApp ──────────────────────────────────────────────────────────────
+    const WA_STATUS_LABEL = {
+      wa_ready:   '● Conectado',
+      wa_qr:      '◎ Aguardando QR',
+      wa_loading: '◌ Iniciando...',
+      wa_off:     '○ Desligado',
+    };
+
+    const EVENT_LABELS = {
+      order_accepted:        'Pedido aceito',
+      order_ready:           'Pedido pronto',
+      order_out_for_delivery:'Saiu para entrega',
+      order_delivered:       'Pedido entregue',
+      order_cancelled:       'Pedido cancelado',
+    };
+
+    let _waTemplates = {};
+
+    function setWaBadge(s) {
+      const badge = document.getElementById('wa-badge');
+      badge.className   = s;
+      badge.textContent = WA_STATUS_LABEL[s] || s;
+    }
+
+    function renderWaTemplates(templates) {
+      _waTemplates = templates;
+      const list = document.getElementById('wa-tpl-list');
+      list.innerHTML = '';
+
+      for (const [key, tpl] of Object.entries(templates)) {
+        const row = document.createElement('div');
+        row.className = 'tpl-row';
+        row.innerHTML = `
+          <div>
+            <label for="tpl-${key}">${esc(tpl.label || EVENT_LABELS[key] || key)}</label>
+            <textarea id="tpl-${key}" rows="2">${esc(tpl.message || '')}</textarea>
+            <div style="font-size:10px;color:#9ca3af;margin-top:2px">
+              Variáveis: {cliente} {pedido_id} {total} {tipo} {endereco} {tempo_estimado}
+            </div>
+          </div>
+          <div style="padding-top:20px">
+            <input type="checkbox" class="tpl-toggle" id="tpl-en-${key}" ${tpl.enabled ? 'checked' : ''}>
+          </div>`;
+        list.appendChild(row);
+      }
+    }
+
+    async function waSaveTemplates() {
+      const updated = {};
+      for (const [key, tpl] of Object.entries(_waTemplates)) {
+        updated[key] = {
+          ...tpl,
+          message: document.getElementById(`tpl-${key}`)?.value ?? tpl.message,
+          enabled: document.getElementById(`tpl-en-${key}`)?.checked ?? tpl.enabled,
+        };
+      }
+      const res = await window.kero.waSaveTemplates(updated);
+      waMsg(res.ok ? 'Mensagens salvas!' : 'Erro ao salvar.', res.ok);
+    }
+
+    function waShowWindow() { window.kero.waShowWindow(); }
+
+    async function waTestSend() {
+      const phone = document.getElementById('wa-test-phone').value.trim();
+      const event = document.getElementById('wa-test-event').value;
+      if (!phone) { waMsg('Informe o número.', false); return; }
+      const res = await window.kero.waTestSend({ phone, event });
+      if (res.ok) waMsg('Mensagem enfileirada!');
+      else if (res.reason === 'not_ready') waMsg('WhatsApp não conectado.', false);
+      else if (res.reason === 'template_disabled') waMsg('Template desativado.', false);
+      else waMsg('Erro: ' + (res.reason || '?'), false);
+    }
+
+    function waMsg(text, ok = true) {
+      const el = document.getElementById('wa-msg');
+      el.textContent = text;
+      el.className   = ok ? 'ok' : 'err';
+      setTimeout(() => { el.textContent = ''; el.className = ''; }, 3500);
+    }
+
+    // Init
+    window.kero.waGetStatus().then(setWaBadge);
+    window.kero.waGetTemplates().then(renderWaTemplates);
+    window.kero.onWaStatus(setWaBadge);
+
+    // Auto-update banner
+    const updateBanner  = document.getElementById('update-banner');
+    const updateText    = document.getElementById('update-banner-text');
+    const updateInstBtn = document.getElementById('update-install-btn');
+
+    window.kero.onUpdateAvailable(({ version }) => {
+      updateBanner.style.display = 'flex';
+      updateText.textContent = `Nova versão ${version} disponível — baixando automaticamente...`;
+    });
+
+    window.kero.onUpdateDownloaded(({ version }) => {
+      updateBanner.style.display = 'flex';
+      updateText.textContent = `v${version} pronta para instalar`;
+      updateInstBtn.style.display = 'block';
+    });
+
+    updateInstBtn.addEventListener('click', () => window.kero.updateInstallNow());
   </script>
 </body>
 </html>

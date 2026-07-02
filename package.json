@@ -14,21 +14,39 @@
     "appId": "com.keropedir.print-agent",
     "productName": "Kero Pedir Print",
     "copyright": "Kero Pedir",
+    "publish": {
+      "provider": "github",
+      "owner": "dyagodev",
+      "repo": "agent-print",
+      "releaseType": "release"
+    },
     "files": [
       "electron/**/*",
       "core/**/*",
       "assets/**/*"
     ],
     "win": {
+      "icon": "electron/assets/icon.ico",
       "target": [
-        { "target": "portable", "arch": ["x64"] },
-        { "target": "nsis",     "arch": ["x64"] }
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "mac": {
       "target": "dmg",
       "icon": "electron/assets/icon.icns",
-      "category": "public.app-category.utilities"
+      "category": "public.app-category.utilities",
+      "identity": null
     },
     "linux": {
       "target": "AppImage",
@@ -41,7 +59,9 @@
       "runAfterFinish": true
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  },
   "devDependencies": {
     "electron": "^31.0.0",
     "electron-builder": "^25.0.0"
